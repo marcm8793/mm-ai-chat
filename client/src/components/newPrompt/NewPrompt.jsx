@@ -16,23 +16,33 @@ const NewPrompt = ({ data }) => {
     aiData: {},
   });
 
-  const chat = model.startChat({
-    history: [
-      data?.history.map(({ role, parts }) => ({
+  const [chat, setChat] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (data?.history) {
+      const formattedHistory = data.history.map(({ role, parts }) => ({
         role,
         parts: [{ text: parts[0].text }],
-      })),
-    ],
-    generationConfig: {
-      // maxOutputTokens: 100,
-    },
-  });
+      }));
+
+      const newChat = model.startChat({
+        history: formattedHistory,
+        generationConfig: {
+          // maxOutputTokens: 100,
+        },
+      });
+
+      setChat(newChat);
+      setIsInitialized(true);
+    }
+  }, [data]);
 
   const endRef = useRef(null);
   const formRef = useRef(null);
 
   useEffect(() => {
-    endRef.current.scrollIntoView({ behavior: "smooth" });
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [data, question, answer, img.dbData]);
 
   const queryClient = useQueryClient();
@@ -75,6 +85,11 @@ const NewPrompt = ({ data }) => {
   const add = async (text, isInitial) => {
     if (!isInitial) setQuestion(text);
 
+    if (!chat) {
+      console.error("Chat session not initialized");
+      return;
+    }
+
     try {
       const result = await chat.sendMessageStream(
         Object.entries(img.aiData).length ? [img.aiData, text] : [text]
@@ -87,7 +102,11 @@ const NewPrompt = ({ data }) => {
         setAnswer(accumulatedText);
       }
 
-      mutation.mutate();
+      mutation.mutate({
+        question: text.length ? text : undefined,
+        answer: accumulatedText,
+        img: img.dbData?.filePath || undefined,
+      });
     } catch (err) {
       console.log(err);
     }
@@ -102,21 +121,15 @@ const NewPrompt = ({ data }) => {
     add(text, false);
   };
 
-  // IN PRODUCTION WE DON'T NEED IT
-  const hasRun = useRef(false);
-
+  // Handle initial message
   useEffect(() => {
-    if (!hasRun.current) {
-      if (data?.history?.length === 1) {
-        add(data.history[0].parts[0].text, true);
-      }
+    if (isInitialized && data?.history?.length === 1) {
+      add(data.history[0].parts[0].text, true);
     }
-    hasRun.current = true;
-  }, []);
+  }, [isInitialized, data]);
 
   return (
     <>
-      {/* ADD NEW CHAT */}
       {img.isLoading && <div className="">Loading...</div>}
       {img.dbData?.filePath && (
         <IKImage

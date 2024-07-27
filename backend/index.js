@@ -85,9 +85,8 @@ app.post("/api/chats", ClerkExpressRequireAuth(), async (req, res) => {
           },
         }
       );
-
-      res.status(201).send(newChat._id);
     }
+    res.status(201).send(newChat._id);
   } catch (err) {
     console.log(err);
     res.status(500).send("Error creating chat!");
@@ -99,6 +98,10 @@ app.get("/api/userchats", ClerkExpressRequireAuth(), async (req, res) => {
 
   try {
     const userChats = await UserChats.find({ userId });
+
+    if (!userChats.length) {
+      return res.status(200).send([]);
+    }
 
     res.status(200).send(userChats[0].chats);
   } catch (err) {
@@ -133,7 +136,7 @@ app.put("/api/chats/:id", ClerkExpressRequireAuth(), async (req, res) => {
   ];
 
   try {
-    const updatedChat = await Chat.updateOne(
+    const updatedChat = await Chat.findOneAndUpdate(
       { _id: req.params.id, userId },
       {
         $push: {
@@ -141,7 +144,8 @@ app.put("/api/chats/:id", ClerkExpressRequireAuth(), async (req, res) => {
             $each: newItems,
           },
         },
-      }
+      },
+      { new: true }
     );
     res.status(200).send(updatedChat);
   } catch (err) {

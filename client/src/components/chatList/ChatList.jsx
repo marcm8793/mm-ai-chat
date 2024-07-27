@@ -8,7 +8,12 @@ const ChatList = () => {
     queryFn: () =>
       fetch(`${import.meta.env.VITE_API_URL}/api/userchats`, {
         credentials: "include",
-      }).then((res) => res.json()),
+      }).then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to fetch user chats");
+        }
+        return res.json();
+      }),
   });
 
   return (
@@ -20,15 +25,19 @@ const ChatList = () => {
       <hr />
       <span className="title">RECENT CHATS</span>
       <div className="list">
-        {isPending
-          ? "Loading..."
-          : error
-          ? "Something went wrong!"
-          : data?.map((chat) => (
-              <Link to={`/dashboard/chats/${chat._id}`} key={chat._id}>
-                {chat.title}
-              </Link>
-            ))}
+        {isPending ? (
+          "Loading..."
+        ) : error ? (
+          "An error occurred"
+        ) : data && data.length > 0 ? (
+          data.map((chat) => (
+            <Link to={`/dashboard/chats/${chat._id}`} key={chat._id}>
+              {chat.title}
+            </Link>
+          ))
+        ) : (
+          <p>No chats yet. Start a new conversation!</p>
+        )}
       </div>
       <hr />
       <div className="upgrade">
